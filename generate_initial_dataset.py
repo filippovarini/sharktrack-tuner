@@ -4,22 +4,20 @@ import cv2
 import pandas as pd
 
 def seek_video(video_path, time_seconds):
-    vidcap = cv2.VideoCapture(video_path)
+    vidcap = cv2.VideoCapture(str(video_path))
     vidcap.set(cv2.CAP_PROP_POS_MSEC, time_seconds*1000)
     return vidcap
 
 def maxn_df_sanity_check(maxn_df: pd.DataFrame):
     # check video path correct
-    sample_video_path = Path(maxn_df[0]["video_path"]) / maxn_df[0]["chapter_name"]
-    sample_video_time = maxn_df[0]["time_seconds"]
-    vidcap = seek_video(sample_video_path)
+    sample_video_path = Path(maxn_df["video_path"].iloc[0])
+    sample_video_time = maxn_df["time_seconds"].iloc[0]
+    vidcap = seek_video(sample_video_path, sample_video_time)
     ret, _ = vidcap.read()
-    print(ret)
     assert ret, f"Can't read video {sample_video_path}"
 
-    assert not maxn_df.isnull(), "MaxN file can't contain null values"  
+    assert maxn_df.isnull().sum().sum() == 0, f"MaxN file can't contain null values {maxn_df.isnull().sum()}"  
 
-# %%
 def invert_ratio(species_df):
     # We want rarely occurring species to have a higher number of frames of representation
     # to achieve data balance
@@ -37,7 +35,7 @@ def calculate_frames_extraction_ratio(maxn_df: pd.DataFrame):
     species_df["frames_per_maxn"] = (species_df["inverted_ratio"] * total_frames / species_df["n"]).astype(int)
     
     maxn_df = pd.merge(maxn_df, species_df[["species", "frames_per_maxn"]], on='species', how='inner')
-    print(maxn_df)
+    return maxn_df
 
 #%%
 
@@ -49,7 +47,7 @@ def extract_frames(maxn_df: pd.DataFrame, dataset_path: Path):
     extraction_log = []
 
     for index, row in extraction_guide.iterrows():
-        video_path = Path(row["video_path"]) / row["chapter_name"]
+        video_path = Path(row["video_path"])
         time_start = max(0, row["time_seconds"] - row["frames_per_maxn"] // 2)
         curr_time = time_start
         vidcap = seek_video(video_path, time_start)
@@ -65,7 +63,9 @@ def extract_frames(maxn_df: pd.DataFrame, dataset_path: Path):
                 "species": row["species"],
                 "image_id": len(extraction_log)
             })
-            cv2.imwrite(dataset_path / "images", frame)
+            image_path = str(dataset_path / "images" / f"{len(extraction_log)}.jpg") 
+            print(f"Saving image {image_path}")
+            cv2.imwrite(image_path, frame)
             curr_time += 1
         
 
@@ -74,10 +74,9 @@ def extract_frames(maxn_df: pd.DataFrame, dataset_path: Path):
 
     return True
 
-maxn_df = pd.read_csv("maxn_df.csv")
-dataset_path = Path("initial_dataset")
-extract_frames("maxn.csv", )
-
+maxn_df = pd.read_csv("maxn.csv")
+dataset_path = Path("/Users/filippovarini/Desktop/SharkTrack_workdir/sharktrack-tuner/initial_dataset")
+print(extract_frames(maxn_df, dataset_path))
 
 
 # %%

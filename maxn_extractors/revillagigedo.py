@@ -19,10 +19,25 @@ def load_maxn_revilla(path):
     video_root = Path("/Volumes/Expansion/Expedicion Revillagigedo/")
     search_depth = 3
     search_pattern = pathlib.os.sep.join(["*"] * search_depth)
-    videos = video_root.glob(search_pattern)
-    code2video = {v.stem.strip().lower(): v for v in videos}
+    video_folders = video_root.glob(search_pattern)
+    code2video = {v.stem.strip().lower(): v for v in video_folders}
 
-    maxn_df["video_path"] = maxn_df["Cod"].apply(lambda code: code2video.get(code.strip().lower(), None))
+    def calculate_video_path(row):
+        video_code = row.Cod
+        video_name = row["NOMBRE VIDEO"]
+        clean_code = video_code.strip().lower()
+        if clean_code not in code2video:
+            print(f"invalid code: {clean_code}")
+            return None
+
+        video_folder = code2video[clean_code]
+        video_paths = video_folder.rglob(f"*{video_name}")
+        filename = next(video_paths, None)
+        while filename and filename.stem.startswith("."):
+            filename = next(video_paths, None)
+        return filename
+
+    maxn_df["video_path"] = maxn_df.apply(calculate_video_path, axis=1)
     maxn_df["chapter_name"] = maxn_df["NOMBRE VIDEO"]
     maxn_df["species"] = maxn_df["NOMBRE CIENTIFICO"]
     maxn_df = maxn_df[["video_path", "chapter_name", "species", "MINUTO. INICIAL"]]
