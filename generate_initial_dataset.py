@@ -1,4 +1,3 @@
-#%%
 from pathlib import Path
 import cv2
 import pandas as pd
@@ -6,7 +5,6 @@ import yaml
 from ultralytics import YOLO
 import roboflow
 
-#%%
 def seek_video(video_path, time_seconds):
     vidcap = cv2.VideoCapture(str(video_path))
     vidcap.set(cv2.CAP_PROP_POS_MSEC, time_seconds*1000)
@@ -41,8 +39,7 @@ def calculate_frames_extraction_ratio(maxn_df: pd.DataFrame):
     maxn_df = pd.merge(maxn_df, species_df[["species", "frames_per_maxn"]], on='species', how='inner')
     return maxn_df
 
-#%%
-def extract_frames(maxn_df: pd.DataFrame, dataset_path: Path):
+def extract_frames(maxn_df: pd.DataFrame, dataset_path: Path, images_path: Path):
     maxn_df_sanity_check(maxn_df)
     extraction_guide = calculate_frames_extraction_ratio(maxn_df)
     extraction_log = []
@@ -56,29 +53,28 @@ def extract_frames(maxn_df: pd.DataFrame, dataset_path: Path):
 
         i = 0
 
-        ret = True
+        ret, frame = vidcap.read()
 
         while ret and curr_time - time_start < row["frames_per_maxn"]:
-            ret, frame = vidcap.read()
-            if i % video_fps == 0:
+            i += 1
+            if i % int(video_fps) == 0:
                 extraction_log.append({
                     "video_path": str(video_path),
                     "time": curr_time,
                     "species": row["species"],
                     "image_id": len(extraction_log)
                 })
-                image_path = str(dataset_path / "images" / f"{len(extraction_log)}.jpg") 
+                image_path = str(images_path / f"{len(extraction_log)}.jpg") 
                 print(f"Saving image {image_path}")
                 cv2.imwrite(image_path, frame)
                 curr_time += 1
+            ret, frame = vidcap.read()
         
 
     extraction_df = pd.DataFrame(extraction_log)
     extraction_df.to_csv(dataset_path / "log.csv")
 
     return True
-
-#%%
 
 def setup_yolov8_dataset(root: Path, yaml_name='data_config.yaml'):    
     # Creating directories for train, val, test, and their images subdirectories
@@ -104,23 +100,33 @@ def setup_yolov8_dataset(root: Path, yaml_name='data_config.yaml'):
 
 def run_sharktrack_preinference(folder: Path):
     model = YOLO("./models/sharktrack.pt")
-    model(str(folder), save_txt=True)
+    model(str(folder), save_txt=True, project=str(folder.parent / "labels"))
 
-dataset_path_root = Path("/Users/filippovarini/Desktop/SharkTrack_workdir/sharktrack-tuner/initial_dataset")
-run_sharktrack_preinference(dataset_path / "images")
-
-
-# %%
-def create_initial_dataset(name="preliminary"):
+def create_dataset_folder(name):
     root_path = Path("data")
     path = root_path / name
     new_path = path
     i = 0
     while new_path.exists():
         i += 1
-        new_path = path.parent / name + str(i)
+        new_path = path.parent / (name + str(i))
     
     new_path.mkdir()
 
-    setup_yolov8_dataset(root_path)
+    return new_path
 
+def generate_initial_dataset(maxn_df_path: str, name="preliminary"):
+    path = create_dataset_folder(name)
+
+    yolo_path = path / "yolo"
+    yolo_path.mkdir()
+    setup_yolov8_dataset(yolo_path)
+
+    maxn_df = pd.read_csv(maxn_df_path)
+    images_folder = yolo_path / "train" / "images"
+    extract_frames(maxn_df, path, images_folder)
+
+    run_sharktrack_preinference(images_folder)
+
+
+generate_initial_dataset("maxn/maxn_revilla.csv")
