@@ -1,9 +1,10 @@
+from utils.config import Config
+from utils.path_resolver import construct_new_folder
 from pathlib import Path
 import cv2
 import pandas as pd
 import yaml
 from ultralytics import YOLO
-import roboflow
 
 def seek_video(video_path, time_seconds):
     vidcap = cv2.VideoCapture(str(video_path))
@@ -102,21 +103,16 @@ def run_sharktrack_preinference(folder: Path):
     model = YOLO("./models/sharktrack.pt")
     model(str(folder), save_txt=True, project=str(folder.parent / "labels"))
 
-def create_dataset_folder(name):
-    root_path = Path("data")
-    path = root_path / name
-    new_path = path
-    i = 0
-    while new_path.exists():
-        i += 1
-        new_path = path.parent / (name + str(i))
-    
+def create_dataset_folder():
+    root_path = Config.get_preliminary_dataset_path()
+
+    new_path = construct_new_folder(root_path)
     new_path.mkdir()
 
     return new_path
 
-def generate_initial_dataset(maxn_df_path: str, name="preliminary"):
-    path = create_dataset_folder(name)
+def generate_initial_dataset(maxn_df_path: str):
+    path = create_dataset_folder()
 
     yolo_path = path / "yolo"
     yolo_path.mkdir()
