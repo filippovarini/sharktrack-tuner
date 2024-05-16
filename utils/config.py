@@ -12,3 +12,7 @@ class Config():
     def get_development_dataset_path(self) -> Path:
         return self.data_folder / "development"
     
+    @classmethod
+    def get_sharktrack_class(self) -> Path:
+        return "elasmobranch"
+    
