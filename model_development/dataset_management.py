@@ -18,11 +18,11 @@ def setup_database_management():
 def download_dataset(workspace: str, project: str, version: int, annotation_format: str):
     rf = setup_database_management()
     project = rf.workspace(workspace).project(project)
-    version = project.version(version)
+    dataset_version = project.version(version)
 
     download_location = construct_new_folder(Config.get_development_dataset_path() / f"v{version}data")
     download_location = construct_new_folder(download_location / Config.get_object_detection_dataset_name())
-    version.download(annotation_format, location=str(download_location))
+    dataset_version.download(annotation_format, location=str(download_location))
 
     return download_location
 
