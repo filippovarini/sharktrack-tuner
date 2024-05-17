@@ -20,7 +20,7 @@ def update_splits_path(data_yaml_payh: Path):
     with open(str(data_yaml_payh), "r") as f:
         data = yaml.load(f, Loader=yaml.SafeLoader)
 
-    data["path"] = str(data_yaml_payh.parent)
+    data["path"] = str(data_yaml_payh.parent.absolute())
     data["train"] = "./train"
     data["test"] = "./test"
     data["val"] = "./valid"
@@ -113,7 +113,7 @@ def aggregate_all_classes(data_yaml_path: Path):
     with open(str(data_yaml_path), "w") as f:
         yaml.dump(data_config, f)
     
-    splits = ["train", "val", "test"]
+    splits = ["train", "valid", "test"]
 
     for split in splits:
         split_path = data_yaml_path.parent / split

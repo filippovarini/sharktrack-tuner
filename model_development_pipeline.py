@@ -13,11 +13,14 @@ object_detection_yaml = download_dataset(workspace, project, version, "yolov8")
 #%%
 # Construct Image Classification Dataset
 construct_image_classification_dataset(object_detection_yaml)
+
 # %%
+# Aggregate the object_detection classes in a single "elasmobranch" class
 aggregate_all_classes(object_detection_yaml)
 
 # %%
+# Train single class SharkTrack detector
 trainer = SharkTrackTrainer(project_name="Revillagigedo")
-trainer.train(object_detection_yaml)
+model_accuracy = trainer.train(object_detection_yaml)
 
 # %%
