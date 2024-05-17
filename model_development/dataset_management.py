@@ -15,6 +15,19 @@ def setup_database_management():
     rf = Roboflow(api_key=api_key)
     return rf
 
+def update_splits_path(data_yaml_payh: Path):
+    data = None
+    with open(str(data_yaml_payh), "r") as f:
+        data = yaml.load(f, Loader=yaml.SafeLoader)
+
+    data["path"] = str(data_yaml_payh.parent)
+    data["train"] = "./train"
+    data["test"] = "./test"
+    data["val"] = "./valid"
+    print(data)
+    with open(str(data_yaml_payh), "w") as f:
+        yaml.dump(data, f)
+
 def download_dataset(workspace: str, project: str, version: int, annotation_format: str):
     rf = setup_database_management()
     project = rf.workspace(workspace).project(project)
@@ -24,7 +37,10 @@ def download_dataset(workspace: str, project: str, version: int, annotation_form
     download_location = construct_new_folder(download_location / Config.get_object_detection_dataset_name())
     dataset_version.download(annotation_format, location=str(download_location))
 
-    return download_location
+    data_yaml_path = download_location / "data.yaml"
+    update_splits_path(data_yaml_path)
+
+    return data_yaml_path
 
 def construct_image_classification_folder_structure(object_detection_data_yaml_path: Path):
     object_detection_location = object_detection_data_yaml_path.parent

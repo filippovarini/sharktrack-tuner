@@ -23,3 +23,13 @@ class Config():
     def get_sharktrack_class(self) -> Path:
         return "elasmobranch"
     
+    @classmethod
+    def get_project_folder(self) -> Path:
+        return Path("models")
+
+    @classmethod
+    def get_sharktrack_model(self) -> Path:
+        return self.get_project_folder() / "sharktrack.pt"
+    
+
+    
