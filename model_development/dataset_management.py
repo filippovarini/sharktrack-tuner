@@ -24,7 +24,6 @@ def update_splits_path(data_yaml_payh: Path):
     data["train"] = "./train"
     data["test"] = "./test"
     data["val"] = "./valid"
-    print(data)
     with open(str(data_yaml_payh), "w") as f:
         yaml.dump(data, f)
 
@@ -61,7 +60,7 @@ def extract_boxes(imagefile: Path, labelfile: Path):
     label_ids = []
 
     image = cv2.imread(str(imagefile))
-    image_w, image_h, _ = image.shape
+    image_h, image_w, _ = image.shape
 
     with open(str(labelfile), "r") as f:
         instances = f.readlines()
@@ -71,15 +70,17 @@ def extract_boxes(imagefile: Path, labelfile: Path):
             label_ids.append(int(annotations[0]))
             x_centre = float(annotations[1]) * image_w
             y_centre = float(annotations[2]) * image_h
-            box_w = float(annotations[3]) * image_w
-            box_h = float(annotations[4]) * image_h
+            box_w = int(float(annotations[3]) * image_w)
+            box_h = int(float(annotations[4]) * image_h)
 
-            xmin = int(x_centre - box_w / 2)
-            xmax = int(x_centre + box_w / 2)
-            ymin = int(y_centre - box_h / 2)
-            ymax = int(y_centre + box_h / 2)
+            xmin = int(x_centre - box_w / 2.)
+            ymin = int(y_centre - box_h / 2.)
+            xmax = xmin + box_w
+            ymax = ymin + box_h
 
-            boxes.append(image[ymin:ymax, xmin:xmax])
+            box = image[ymin:ymax, xmin:xmax]
+            assert len(box) != 0, f"Empty box, {x_centre=}, {y_centre=}, {box_w=}, {box_h=}, {xmin=}, {xmax=}, {ymin=}, {ymax=}, {image.shape[0]}, {image.shape[1]}"
+            boxes.append(box)
     
     return boxes, label_ids
 
@@ -126,3 +127,4 @@ def aggregate_all_classes(data_yaml_path: Path):
 
             with open(str(label_file), "w") as f:
                 f.writelines(new_instances)
+# %%
