@@ -13,15 +13,13 @@ object_detection_yaml = download_dataset(workspace, project, version, "yolov8")
 
 # %%
 # Construct Image Classification Dataset
-construct_image_classification_dataset(object_detection_yaml)
+image_classification_folder = construct_image_classification_dataset(
+    object_detection_yaml
+)
 
 # %%
 # Aggregate the object_detection classes in a single "elasmobranch" class
 aggregate_all_classes(object_detection_yaml)
-
-# %%
-# Path to the image classification folder
-image_classification_folder = object_detection_yaml.parent / "image_classification"
 
 # Train the image classifier
 train_image_classifier(str(image_classification_folder))

@@ -45,11 +45,20 @@ def get_dataloaders(data_dir, batch_size=32):
         train_subset = Subset(dataset, train_ids)
         val_subset = Subset(dataset, val_ids)
         train_loader = DataLoader(
-            train_subset, batch_size=batch_size, shuffle=True, num_workers=4
+            train_subset,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=4,
+            transform=data_transforms["train"],
         )
         val_loader = DataLoader(
-            val_subset, batch_size=batch_size, shuffle=False, num_workers=4
+            val_subset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=4,
+            transform=data_transforms["val"],
         )
+
         dataloaders.append({"train": train_loader, "val": val_loader})
 
     class_names = dataset.classes
