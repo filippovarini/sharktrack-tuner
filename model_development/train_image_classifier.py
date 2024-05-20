@@ -157,4 +157,66 @@ def train_model(
                 early_stopping(epoch_loss, model)
                 if early_stopping.early_stop:
                     print("Early stopping")
-                    model
+                    model.load_state_dict(torch.load("checkpoint.pt"))
+                    return model
+            if phase == "val" and epoch_acc > best_acc:
+                best_acc = epoch_acc
+                best_model_wts = copy.deepcopy(model.state_dict())
+        print()
+    time_elapsed = time.time() - since
+    print(f"Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s")
+    print(f"Best val Acc: {best_acc:.4f}")
+    model.load_state_dict(best_model_wts)
+    return model
+
+
+def main(data_dir, num_epochs=25, patience=7, batch_size=32):
+    dataloaders, class_names = get_dataloaders(data_dir, batch_size)
+    all_fold_accuracies = []
+
+    for fold, loaders in enumerate(dataloaders):
+        print(f"Fold {fold}/{len(dataloaders) - 1}")
+        print("-" * 10)
+
+        model = initialize_model(num_classes=len(class_names))
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.SGD(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=0.001,
+            momentum=0.9,
+        )
+        exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
+
+        model = train_model(
+            model,
+            criterion,
+            optimizer,
+            exp_lr_scheduler,
+            loaders,
+            num_epochs=num_epochs,
+            patience=patience,
+        )
+
+        model.eval()
+        running_corrects = 0
+        for inputs, labels in loaders["val"]:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            with torch.no_grad():
+                outputs = model(inputs)
+                _, preds = torch.max(outputs, 1)
+            running_corrects += torch.sum(preds == labels.data)
+
+        fold_acc = running_corrects.double() / len(loaders["val"].dataset)
+        print(f"Fold {fold} validation accuracy: {fold_acc:.4f}")
+        all_fold_accuracies.append(fold_acc)
+
+    average_accuracy = sum(all_fold_accuracies) / len(all_fold_accuracies)
+    print(f"Average validation accuracy across folds: {average_accuracy:.4f}")
+    torch.save(model.state_dict(), "densenet_model.pt")
+    print("Model saved successfully.")
+
+
+if __name__ == "__main__":
+    data_dir = "/content/image_classification1"  # Adjust the path as needed
+    main(data_dir)
