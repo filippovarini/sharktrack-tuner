@@ -1,4 +1,4 @@
-#%%
+# %%
 from roboflow import Roboflow
 from pathlib import Path
 import yaml
@@ -85,6 +85,7 @@ def extract_boxes(imagefile: Path, labelfile: Path):
 
 def construct_image_classification_dataset(object_detection_data_yaml_path: Path) -> Path:
     image_classification_folder, labels = construct_image_classification_folder_structure(object_detection_data_yaml_path)
+    return image_classification_folder
 
     object_detection_dataset = object_detection_data_yaml_path.parent
     for imagefile in object_detection_dataset.rglob("*.jpg"):
@@ -92,7 +93,7 @@ def construct_image_classification_dataset(object_detection_data_yaml_path: Path
         if not labelfile.exists():
             print(f"Image {imagefile} does not have annotations {labelfile}")
             continue
-        
+
         boxes, label_ids = extract_boxes(imagefile, labelfile)
         assert len(boxes) == len(label_ids), f"Different number of boxes {len(boxes)} and label ids {len(label_ids)}"
         for i, (box, label_id) in enumerate(zip(boxes, label_ids)):
