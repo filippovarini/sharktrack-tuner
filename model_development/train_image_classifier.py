@@ -10,6 +10,7 @@ from torchvision import datasets, models, transforms
 from sklearn.model_selection import StratifiedKFold
 import numpy as np
 from pathlib import Path
+from sklearn.metrics import classification_report, roc_auc_score, roc_curve, auc
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -115,6 +116,47 @@ class EarlyStopping:
         torch.save(model.state_dict(), "checkpoint.pt")
 
 
+def evaluate_model(model, dataloader, criterion, class_names):
+    model.eval()
+    running_loss = 0.0
+    running_corrects = 0
+    all_labels = []
+    all_preds = []
+    all_probs = []
+
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            _, preds = torch.max(outputs, 1)
+            probs = nn.functional.softmax(outputs, dim=1)
+
+            running_loss += loss.item() * inputs.size(0)
+            running_corrects += torch.sum(preds == labels.data)
+            all_labels.extend(labels.cpu().numpy())
+            all_preds.extend(preds.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy())
+
+    total_loss = running_loss / len(dataloader.dataset)
+    total_acc = running_corrects.double() / len(dataloader.dataset)
+
+    # Classification report
+    class_report = classification_report(
+        all_labels, all_preds, target_names=class_names
+    )
+
+    # ROC-AUC scores
+    roc_auc_scores = {}
+    for i, class_name in enumerate(class_names):
+        fpr, tpr, _ = roc_curve(np.array(all_labels) == i, np.array(all_probs)[:, i])
+        roc_auc_scores[class_name] = auc(fpr, tpr)
+
+    return total_loss, total_acc, all_labels, all_preds, class_report, roc_auc_scores
+
+
 def train_model(
     model, criterion, optimizer, scheduler, dataloaders, num_epochs=25, patience=7
 ):
@@ -158,7 +200,28 @@ def train_model(
                 if early_stopping.early_stop:
                     print("Early stopping")
                     model.load_state_dict(torch.load("checkpoint.pt"))
-                    return model
+                    (
+                        val_loss,
+                        val_acc,
+                        val_labels,
+                        val_preds,
+                        class_report,
+                        roc_auc_scores,
+                    ) = evaluate_model(
+                        model,
+                        dataloaders["val"],
+                        criterion,
+                        dataloaders["val"].dataset.classes,
+                    )
+                    return (
+                        model,
+                        val_loss,
+                        val_acc,
+                        val_labels,
+                        val_preds,
+                        class_report,
+                        roc_auc_scores,
+                    )
             if phase == "val" and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
@@ -167,7 +230,12 @@ def train_model(
     print(f"Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s")
     print(f"Best val Acc: {best_acc:.4f}")
     model.load_state_dict(best_model_wts)
-    return model
+    val_loss, val_acc, val_labels, val_preds, class_report, roc_auc_scores = (
+        evaluate_model(
+            model, dataloaders["val"], criterion, dataloaders["val"].dataset.classes
+        )
+    )
+    return model, val_loss, val_acc, val_labels, val_preds, class_report, roc_auc_scores
 
 
 def main(data_dir, num_epochs=25, patience=7, batch_size=32):
@@ -187,7 +255,15 @@ def main(data_dir, num_epochs=25, patience=7, batch_size=32):
         )
         exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
-        model = train_model(
+        (
+            model,
+            val_loss,
+            val_acc,
+            val_labels,
+            val_preds,
+            class_report,
+            roc_auc_scores,
+        ) = train_model(
             model,
             criterion,
             optimizer,
@@ -197,24 +273,25 @@ def main(data_dir, num_epochs=25, patience=7, batch_size=32):
             patience=patience,
         )
 
-        model.eval()
-        running_corrects = 0
-        for inputs, labels in loaders["val"]:
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-            with torch.no_grad():
-                outputs = model(inputs)
-                _, preds = torch.max(outputs, 1)
-            running_corrects += torch.sum(preds == labels.data)
-
-        fold_acc = running_corrects.double() / len(loaders["val"].dataset)
-        print(f"Fold {fold} validation accuracy: {fold_acc:.4f}")
-        all_fold_accuracies.append(fold_acc)
+        print(f"Fold {fold} validation accuracy: {val_acc:.4f}")
+        print(f"Classification Report for Fold {fold}:\n{class_report}")
+        print(f"ROC-AUC Scores for Fold {fold}:\n{roc_auc_scores}")
+        all_fold_accuracies.append(val_acc)
 
     average_accuracy = sum(all_fold_accuracies) / len(all_fold_accuracies)
     print(f"Average validation accuracy across folds: {average_accuracy:.4f}")
     torch.save(model.state_dict(), "densenet_model.pt")
     print("Model saved successfully.")
+
+    return (
+        average_accuracy,
+        val_loss,
+        val_acc,
+        val_labels,
+        val_preds,
+        class_report,
+        roc_auc_scores,
+    )
 
 
 if __name__ == "__main__":
