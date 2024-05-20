@@ -35,28 +35,31 @@ data_transforms = {
 
 
 def get_dataloaders(data_dir, batch_size=32):
-    dataset = datasets.ImageFolder(data_dir, data_transforms["train"])
+    dataset = datasets.ImageFolder(data_dir)
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     targets = [s[1] for s in dataset.samples]
     splits = list(skf.split(dataset.samples, targets))
 
     dataloaders = []
     for fold, (train_ids, val_ids) in enumerate(splits):
-        train_subset = Subset(dataset, train_ids)
-        val_subset = Subset(dataset, val_ids)
+        train_dataset = Subset(
+            datasets.ImageFolder(data_dir, transform=data_transforms["train"]),
+            train_ids,
+        )
+        val_dataset = Subset(
+            datasets.ImageFolder(data_dir, transform=data_transforms["val"]), val_ids
+        )
         train_loader = DataLoader(
-            train_subset,
+            train_dataset,
             batch_size=batch_size,
             shuffle=True,
             num_workers=4,
-            transform=data_transforms["train"],
         )
         val_loader = DataLoader(
-            val_subset,
+            val_dataset,
             batch_size=batch_size,
             shuffle=False,
             num_workers=4,
-            transform=data_transforms["val"],
         )
 
         dataloaders.append({"train": train_loader, "val": val_loader})
