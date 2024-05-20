@@ -1,4 +1,4 @@
-#%%
+# %%
 from roboflow import Roboflow
 from pathlib import Path
 import yaml
@@ -24,6 +24,7 @@ def update_splits_path(data_yaml_payh: Path):
     data["train"] = "./train"
     data["test"] = "./test"
     data["val"] = "./valid"
+    print(data)
     with open(str(data_yaml_payh), "w") as f:
         yaml.dump(data, f)
 
@@ -60,7 +61,7 @@ def extract_boxes(imagefile: Path, labelfile: Path):
     label_ids = []
 
     image = cv2.imread(str(imagefile))
-    image_h, image_w, _ = image.shape
+    image_w, image_h, _ = image.shape
 
     with open(str(labelfile), "r") as f:
         instances = f.readlines()
@@ -70,22 +71,21 @@ def extract_boxes(imagefile: Path, labelfile: Path):
             label_ids.append(int(annotations[0]))
             x_centre = float(annotations[1]) * image_w
             y_centre = float(annotations[2]) * image_h
-            box_w = int(float(annotations[3]) * image_w)
-            box_h = int(float(annotations[4]) * image_h)
+            box_w = float(annotations[3]) * image_w
+            box_h = float(annotations[4]) * image_h
 
-            xmin = int(x_centre - box_w / 2.)
-            ymin = int(y_centre - box_h / 2.)
-            xmax = xmin + box_w
-            ymax = ymin + box_h
+            xmin = int(x_centre - box_w / 2)
+            xmax = int(x_centre + box_w / 2)
+            ymin = int(y_centre - box_h / 2)
+            ymax = int(y_centre + box_h / 2)
 
-            box = image[ymin:ymax, xmin:xmax]
-            assert len(box) != 0, f"Empty box, {x_centre=}, {y_centre=}, {box_w=}, {box_h=}, {xmin=}, {xmax=}, {ymin=}, {ymax=}, {image.shape[0]}, {image.shape[1]}"
-            boxes.append(box)
+            boxes.append(image[ymin:ymax, xmin:xmax])
     
     return boxes, label_ids
 
 def construct_image_classification_dataset(object_detection_data_yaml_path: Path) -> Path:
     image_classification_folder, labels = construct_image_classification_folder_structure(object_detection_data_yaml_path)
+    return image_classification_folder
 
     object_detection_dataset = object_detection_data_yaml_path.parent
     for imagefile in object_detection_dataset.rglob("*.jpg"):
@@ -93,7 +93,7 @@ def construct_image_classification_dataset(object_detection_data_yaml_path: Path
         if not labelfile.exists():
             print(f"Image {imagefile} does not have annotations {labelfile}")
             continue
-        
+
         boxes, label_ids = extract_boxes(imagefile, labelfile)
         assert len(boxes) == len(label_ids), f"Different number of boxes {len(boxes)} and label ids {len(label_ids)}"
         for i, (box, label_id) in enumerate(zip(boxes, label_ids)):
@@ -127,4 +127,3 @@ def aggregate_all_classes(data_yaml_path: Path):
 
             with open(str(label_file), "w") as f:
                 f.writelines(new_instances)
-# %%
