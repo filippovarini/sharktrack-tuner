@@ -1,2 +1,3 @@
 venv
-yolo*.pt
+*.pt
+wandb
