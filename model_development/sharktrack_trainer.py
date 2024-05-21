@@ -23,6 +23,10 @@ class SharkTrackTrainer():
     def train(self, dataset_yaml: Path, previous_model: Path = None, **kwargs):
         self.train_params.update(kwargs)
 
+        if Path(Path(self.train_params["project"]) / self.train_params["name"]).exists():
+            print(f"Model {self.train_params['name']} already trained")
+            return None
+
         previous_model_path = str(previous_model) if previous_model else str(Config.get_sharktrack_model())
         model = YOLO(previous_model_path)
 

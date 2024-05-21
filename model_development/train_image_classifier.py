@@ -11,6 +11,9 @@ from sklearn.model_selection import StratifiedKFold
 import numpy as np
 from pathlib import Path
 from sklearn.metrics import classification_report, roc_auc_score, roc_curve, auc
+import sys
+sys.path.append("utils")
+from config import Config
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -82,7 +85,8 @@ def initialize_model(num_classes):
 
 
 class EarlyStopping:
-    def __init__(self, patience=7, verbose=False, delta=0):
+    def __init__(self, model_save_location, patience=7, verbose=False, delta=0):
+        self.model_save_location = model_save_location
         self.patience = patience
         self.verbose = verbose
         self.counter = 0
@@ -113,7 +117,7 @@ class EarlyStopping:
                 f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ..."
             )
         self.val_loss_min = val_loss
-        torch.save(model.state_dict(), "checkpoint.pt")
+        torch.save(model.state_dict(), self.model_save_location)
 
 
 def evaluate_model(model, dataloader, criterion, class_names):
@@ -156,14 +160,18 @@ def evaluate_model(model, dataloader, criterion, class_names):
 
     return total_loss, total_acc, all_labels, all_preds, class_report, roc_auc_scores
 
+def construct_model_save_location(data_dir: Path):
+    return Config.get_project_folder() / data_dir.parent.name / "image_classifier.pt"
+
 
 def train_model(
-    model, criterion, optimizer, scheduler, dataloaders, num_epochs=25, patience=7
+    data_dir, model, criterion, optimizer, scheduler, dataloaders, num_epochs=25, patience=7
 ):
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
-    early_stopping = EarlyStopping(patience=patience, verbose=True)
+    early_stopping = EarlyStopping(construct_model_save_location(data_dir), patience=patience, verbose=True)
+
 
     for epoch in range(num_epochs):
         print(f"Epoch {epoch}/{num_epochs - 1}")
@@ -211,7 +219,7 @@ def train_model(
                         model,
                         dataloaders["val"],
                         criterion,
-                        dataloaders["val"].dataset.classes,
+                        dataloaders["val"].dataset.dataset.classes,
                     )
                     return (
                         model,
@@ -232,14 +240,17 @@ def train_model(
     model.load_state_dict(best_model_wts)
     val_loss, val_acc, val_labels, val_preds, class_report, roc_auc_scores = (
         evaluate_model(
-            model, dataloaders["val"], criterion, dataloaders["val"].dataset.classes
+            model, dataloaders["val"], criterion, dataloaders["val"].dataset.dataset.classes
         )
     )
     return model, val_loss, val_acc, val_labels, val_preds, class_report, roc_auc_scores
 
 
 def main(data_dir, num_epochs=25, patience=7, batch_size=32):
-    dataloaders, class_names = get_dataloaders(data_dir, batch_size)
+    if construct_model_save_location(data_dir).exists():
+        print("Image classifier already exists")
+        return None, None
+    dataloaders, class_names = get_dataloaders(str(data_dir), batch_size)
     all_fold_accuracies = []
 
     for fold, loaders in enumerate(dataloaders):
@@ -264,6 +275,7 @@ def main(data_dir, num_epochs=25, patience=7, batch_size=32):
             class_report,
             roc_auc_scores,
         ) = train_model(
+            data_dir,
             model,
             criterion,
             optimizer,
@@ -292,8 +304,3 @@ def main(data_dir, num_epochs=25, patience=7, batch_size=32):
         class_report,
         roc_auc_scores,
     )
-
-
-if __name__ == "__main__":
-    data_dir = "/content/image_classification1"  # Adjust the path as needed
-    main(data_dir)
