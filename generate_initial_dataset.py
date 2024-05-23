@@ -1,9 +1,8 @@
 from utils.config import Config
-from utils.path_resolver import construct_new_folder
+from utils.path_resolver import construct_new_folder, setup_yolov8_dataset
 from pathlib import Path
 import cv2
 import pandas as pd
-import yaml
 from ultralytics import YOLO
 
 def seek_video(video_path, time_seconds):
@@ -76,28 +75,6 @@ def extract_frames(maxn_df: pd.DataFrame, dataset_path: Path, images_path: Path)
     extraction_df.to_csv(dataset_path / "log.csv")
 
     return True
-
-def setup_yolov8_dataset(root: Path, yaml_name='data_config.yaml'):    
-    # Creating directories for train, val, test, and their images subdirectories
-    for set_type in ['train', 'val', 'test']:
-        (root / set_type / 'images').mkdir(parents=True, exist_ok=True)
-        (root / set_type / 'labels').mkdir(parents=True, exist_ok=True)
-    
-    # Define the data structure for the YAML file
-    data = {
-        'path': str(root), 
-        'train': str(root / 'train'),
-        'val': str(root / 'val'),
-        'test': str(root / 'test'),
-        'names': {0: 'elasmobranch'}
-    }
-    
-    # Write the YAML file
-    yaml_file = root / yaml_name
-    with open(yaml_file, 'w') as file:
-        yaml.dump(data, file, sort_keys=False)
-    
-    print(f"Directory structure and YAML configuration file created at {root}")
 
 def run_sharktrack_preinference(folder: Path):
     model = YOLO("./models/sharktrack.pt")
