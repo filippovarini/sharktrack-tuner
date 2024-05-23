@@ -4,11 +4,11 @@ from model_development.sharktrack_trainer import SharkTrackTrainer
 from model_development.train_image_classifier import main as train_image_classifier
 import wandb
 
-# %%
+# # %%
 # Download dataset
 workspace = "sharktrackpelagios-giyh4"
 project = "sharktrack_revilla"
-version = 2
+version = 3
 object_detection_yaml = download_dataset(workspace, project, version, "yolov8")
 
 # %%
@@ -22,11 +22,29 @@ aggregated_path_yaml = aggregate_all_classes(object_detection_yaml)
 # %%
 # Train single class SharkTrack detector
 trainer = SharkTrackTrainer(project_name="Revillagigedo")
-single_class_accuracy = trainer.train(aggregated_path_yaml, **{
-    "name": "/".join(aggregated_path_yaml.parts[-3:-1]),
-    "epochs": 100,
-    "patience": 10
-})
+single_class_accuracy = trainer.train(
+    aggregated_path_yaml, 
+    **{
+        "name": "/".join(aggregated_path_yaml.parts[-3:-1]),
+        "epochs": 200,
+        "patience": 20,
+    })
+
+# %%
+# Train multi class SharkTrack detector
+from pathlib import Path
+object_detection_yaml = Path("/vol/biomedic3/bglocker/ugproj2324/fv220/dev/sharktrack-tuner/data/development/v3data_remove_full_esu/object_detection/data.yaml")
+trainer = SharkTrackTrainer(project_name="Revillagigedo")
+multi_class_accuracy = trainer.train(
+    object_detection_yaml, 
+    previous_model="yolov8s",
+    **{
+        "name": "/".join(object_detection_yaml.parts[-3:-1]),
+        "epochs": 500,
+        "patience": 50,
+        "single_cls": False,
+    })
+
 
 # %%
 # Train the image classifier
@@ -53,4 +71,3 @@ wandb.log({
     "single_class_accuracy": single_class_accuracy,
     "image_classifier_accuracy": image_classifier_accuracy
 })
-# %%

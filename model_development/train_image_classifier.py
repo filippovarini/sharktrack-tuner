@@ -69,11 +69,12 @@ def get_dataloaders(data_dir, batch_size=32):
         dataloaders.append({"train": train_loader, "val": val_loader})
 
     class_names = dataset.classes
+    print(class_names)
     return dataloaders, class_names
 
 
 def initialize_model(num_classes):
-    model = models.densenet121(pretrained=True)
+    model = models.densenet121(weights=models.DenseNet121_Weights.IMAGENET1K_V1)
     for param in model.parameters():
         param.requires_grad = False
     for param in model.features.denseblock3.parameters():
@@ -170,7 +171,8 @@ def train_model(
     since = time.time()
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
-    early_stopping = EarlyStopping(construct_model_save_location(data_dir), patience=patience, verbose=True)
+    model_save_location = construct_model_save_location(data_dir)
+    early_stopping = EarlyStopping(model_save_location, patience=patience, verbose=True)
 
 
     for epoch in range(num_epochs):
@@ -207,7 +209,7 @@ def train_model(
                 early_stopping(epoch_loss, model)
                 if early_stopping.early_stop:
                     print("Early stopping")
-                    model.load_state_dict(torch.load("checkpoint.pt"))
+                    model.load_state_dict(torch.load(model_save_location))
                     (
                         val_loss,
                         val_acc,

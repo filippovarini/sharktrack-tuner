@@ -10,6 +10,11 @@ import sys
 sys.path.append("utils")
 from utils.config import Config
 
+def remove_cached_data(path: Path):
+    for f in path.rglob("*.cache"):
+        print(f"Removing cache {f}")
+        f.unlink()
+
 def setup_database_management():
     api_key = getpass.getpass("Enter your Roboflow API key: ")
     rf = Roboflow(api_key=api_key)
@@ -37,6 +42,8 @@ def download_dataset(workspace: str, project: str, version: int, annotation_form
     data_yaml_path = download_location / "data.yaml"
 
     if download_location.exists():
+        # Remove all cached data for fresh-new training
+        remove_cached_data(download_location)
         assert data_yaml_path.exists()
         print("Dataset alraedy downloaded")
         return data_yaml_path
@@ -118,6 +125,7 @@ def aggregate_all_classes(data_yaml: Path):
     aggregated_path = object_detection_path.parent / (object_detection_path.name + aggregated_suffix)
     aggregated_yaml = aggregated_path / data_yaml.name
     if aggregated_path.exists():
+        remove_cached_data(aggregated_path)
         print("Aggregated path already exists")
         return aggregated_yaml
 
