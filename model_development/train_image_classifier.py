@@ -69,7 +69,6 @@ def get_dataloaders(data_dir, batch_size=32):
         dataloaders.append({"train": train_loader, "val": val_loader})
 
     class_names = dataset.classes
-    print(class_names)
     return dataloaders, class_names
 
 

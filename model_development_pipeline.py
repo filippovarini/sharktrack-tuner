@@ -4,7 +4,7 @@ from model_development.sharktrack_trainer import SharkTrackTrainer
 from model_development.train_image_classifier import main as train_image_classifier
 import wandb
 
-# # %%
+# %%
 # Download dataset
 workspace = "sharktrackpelagios-giyh4"
 project = "sharktrack_revilla"
