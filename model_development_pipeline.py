@@ -7,8 +7,9 @@ import wandb
 # %%
 # Download dataset
 workspace = "sharktrackpelagios-giyh4"
-project = "sharktrack_revilla"
-version = 3
+# project = "sharktrack_revilla"
+project = "sharktrackrevilla-volunteers"
+version = 1
 object_detection_yaml = download_dataset(workspace, project, version, "yolov8")
 
 # %%
