@@ -33,12 +33,12 @@ def update_splits_path(data_yaml_payh: Path):
     with open(str(data_yaml_payh), "w") as f:
         yaml.dump(data, f)
 
-def download_dataset(workspace: str, project: str, version: int, annotation_format: str):
+def download_dataset(workspace: str, project_name: str, version: int, annotation_format: str):
     rf = setup_database_management()
-    project = rf.workspace(workspace).project(project)
+    project = rf.workspace(workspace).project(project_name)
     dataset_version = project.version(version)
 
-    download_location = Config.get_development_dataset_path() / f"v{version}data" / Config.get_object_detection_dataset_name()
+    download_location = Config.get_development_dataset_path() / f"{project_name}v{version}data" / Config.get_object_detection_dataset_name()
     data_yaml_path = download_location / "data.yaml"
 
     if download_location.exists():
@@ -76,7 +76,7 @@ def extract_boxes(imagefile: Path, labelfile: Path):
     label_ids = []
 
     image = cv2.imread(str(imagefile))
-    image_w, image_h, _ = image.shape
+    image_h, image_w, _ = image.shape
 
     with open(str(labelfile), "r") as f:
         instances = f.readlines()
@@ -86,15 +86,17 @@ def extract_boxes(imagefile: Path, labelfile: Path):
             label_ids.append(int(annotations[0]))
             x_centre = float(annotations[1]) * image_w
             y_centre = float(annotations[2]) * image_h
-            box_w = float(annotations[3]) * image_w
-            box_h = float(annotations[4]) * image_h
+            box_w = int(float(annotations[3]) * image_w)
+            box_h = int(float(annotations[4]) * image_h)
 
-            xmin = int(x_centre - box_w / 2)
-            xmax = int(x_centre + box_w / 2)
-            ymin = int(y_centre - box_h / 2)
-            ymax = int(y_centre + box_h / 2)
+            xmin = int(x_centre - box_w / 2.)
+            ymin = int(y_centre - box_h / 2.)
+            xmax = xmin + box_w
+            ymax = ymin + box_h
 
-            boxes.append(image[ymin:ymax, xmin:xmax])
+            box = image[ymin:ymax, xmin:xmax]
+            assert len(box) != 0, f"Empty box, {x_centre=}, {y_centre=}, {box_w=}, {box_h=}, {xmin=}, {xmax=}, {ymin=}, {ymax=}, {image.shape[0]}, {image.shape[1]}"
+            boxes.append(box)
     
     return boxes, label_ids
 
